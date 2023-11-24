@@ -33,9 +33,15 @@ st.markdown(
     "<h1 style='text-align: center;'>Garanties d'Origines Ekwateur</h1>",
     unsafe_allow_html=True
     )
-
-#st.caption("Cette page permet d'agréger les résultats de l'outil de prévision C4 développé par Irex en pernant en compte les dates du parc")
-#st.write("---")
+st.sidebar.write("Données à upload :")
+chemin_go_list = st.sidebar.file_uploader(
+            "go_list.csv qui contient les données extraites du registre",
+            type=["csv"])
+chemin_pp_list = st.sidebar.file_uploader(
+            "pp-list.csv qui contient le nom des centrales PP par année",
+            type=["csv"])
+st.sidebar.write(":bulb: Appuyer sur la croix en haut à droite de la colonne pour la réduire")
+    
 st.cache_data()
 def recup_et_mise_en_forme(chemin_csv,chemin_pp):
     """Récupération et mise en forme des données issues du registre"""
@@ -64,49 +70,18 @@ def recup_et_mise_en_forme(chemin_csv,chemin_pp):
 
     return df_data
 
-warnings.filterwarnings("ignore")
-df_data_go=recup_et_mise_en_forme(r".\go-list.csv",
-                                  r".\liste_pp_tot.csv")
-
-#Création des paramètres
-liste_offres=["Classique","PP"]
-liste_annees=df_data_go["Année"].drop_duplicates().sort_values().values
-liste_statut=df_data_go["Statut "].drop_duplicates().values
-
-tuple_col=(1,)
-for i in range(len(liste_offres)):
-    tuple_col+=(1,)
-tuple_col=tuple_col+(2,)
-for i in range(len(liste_statut)):
-    tuple_col+=(1,)
-tuple_col=tuple_col+(2,)
-
-conteneur_parametres = st.columns(tuple_col)
-for i,offre in enumerate(liste_offres):
-    conteneur_parametres[i+1].checkbox(offre,value=True,key=offre)
-
-annees = conteneur_parametres[i+2].slider(label='Années',
-                   min_value=min(liste_annees),
-                   max_value=max(liste_annees),
-                   value=(min(liste_annees)+1,max(liste_annees)-1),
-                   key="annees",
-                   label_visibility="collapsed")
-
-for k,statut in enumerate(liste_statut):
-    conteneur_parametres[i+3+k+1].checkbox(statut,value=True,key=statut)
-
 def liste_selections(l_offr,l_stat):
 
-    l_offres_selectionnees,l_statuts_selectionnes=[],[]
+        l_offres_selectionnees,l_statuts_selectionnes=[],[]
 
-    for offer in l_offr:
-        if st.session_state[offer]:
-            l_offres_selectionnees.append(offer)
-    for stat in l_stat:
-        if st.session_state[stat]:
-            l_statuts_selectionnes.append(stat)
+        for offer in l_offr:
+            if st.session_state[offer]:
+                l_offres_selectionnees.append(offer)
+        for stat in l_stat:
+            if st.session_state[stat]:
+                l_statuts_selectionnes.append(stat)
 
-    return l_offres_selectionnees,l_statuts_selectionnes
+        return l_offres_selectionnees,l_statuts_selectionnes
 
 @st.cache_data(show_spinner=True)
 def selection_donnees(df,years:tuple,list_checked_offers:list,list_checked_status:list):
@@ -135,78 +110,120 @@ def selection_donnees(df,years:tuple,list_checked_offers:list,list_checked_statu
 
     return df_data
 
-liste_offres_selectionnees,liste_statuts_selectionnes=liste_selections(liste_offres,liste_statut)
+warnings.filterwarnings("ignore")
+if chemin_go_list is not None and chemin_pp_list is not None :
 
-#Récupération du dataframe des données réduites aux sélections
-df_data_go_checked=selection_donnees(df_data_go,annees,
-                                     liste_offres_selectionnees,
-                                     liste_statuts_selectionnes)
+    if "go-list" not in chemin_go_list.name or "pp-list" not in chemin_pp_list.name:
+        st.write(""":no_entry: Êtes vous sûr d'avoir correctement choisi les fichiers ? Assurez vous que les
+                 noms des fichiers contiennent bien les caratères "go-list" et "pp-list" """)
+    
+    df_data_go=recup_et_mise_en_forme(chemin_go_list,
+                                    chemin_pp_list)
 
-#tracé de deux graphiques sur la même ligne
-col_ligne_1_1,col_ligne_1_2=st.columns((4,2))
-with col_ligne_1_1:
-    fig=px.bar(df_data_go_checked,x="Année",y="Quantité certifiée (MWh) ",
+    #Création des paramètres
+    liste_offres=["Classique","PP"]
+    liste_annees=df_data_go["Année"].drop_duplicates().sort_values().values
+    liste_statut=df_data_go["Statut "].drop_duplicates().values
+
+    tuple_col=(1,)
+    for i in range(len(liste_offres)):
+        tuple_col+=(1,)
+    tuple_col=tuple_col+(2,)
+    for i in range(len(liste_statut)):
+        tuple_col+=(1,)
+    tuple_col=tuple_col+(2,)
+
+    conteneur_parametres = st.columns(tuple_col)
+    for i,offre in enumerate(liste_offres):
+        conteneur_parametres[i+1].checkbox(offre,value=True,key=offre)
+
+    annees = conteneur_parametres[i+2].slider(label='Années',
+                    min_value=min(liste_annees),
+                    max_value=max(liste_annees),
+                    value=(min(liste_annees)+1,max(liste_annees)-1),
+                    key="annees",
+                    label_visibility="collapsed")
+
+    for k,statut in enumerate(liste_statut):
+        conteneur_parametres[i+3+k+1].checkbox(statut,value=True,key=statut)
+
+    liste_offres_selectionnees,liste_statuts_selectionnes=liste_selections(liste_offres,liste_statut)
+
+    #Récupération du dataframe des données réduites aux sélections
+    df_data_go_checked=selection_donnees(df_data_go,annees,
+                                        liste_offres_selectionnees,
+                                        liste_statuts_selectionnes)
+
+    #tracé de deux graphiques sur la même ligne
+    tab_an_1, tab_an_2 = st.tabs(["Volume par année", "Nombre par année"])
+    with tab_an_1:
+        fig=px.bar(df_data_go_checked,x="Année",y="Quantité certifiée (MWh) ",
+                    color="Type d'installation ",
+                    title="Volume valorisé par année de production et par type de centrale",
+                    color_discrete_sequence=px.colors.qualitative.Light24
+                    )
+        st.plotly_chart(fig,use_container_width=True)
+
+    with tab_an_2:
+        fig=px.bar(df_data_go_checked,x="Année",y='Nombre de centrales',
                 color="Type d'installation ",
-                title="Volume valorisé par année et par type",
+                title="Nombre de centrales par année de production et par type",
                 color_discrete_sequence=px.colors.qualitative.Light24
                 )
-    col_ligne_1_1.plotly_chart(fig,use_container_width=True)
+        st.plotly_chart(fig,use_container_width=True)
+        
+    #tracé de deux autres graphiques sur la même ligne
+    col_ligne_2_1,col_ligne_2_2=st.columns(2)
+    with col_ligne_2_2:
+        sum_df=df_data_go_checked.groupby('Année', as_index=False).agg({'Quantité certifiée (MWh) ': 'sum'})
+        sum_df=sum_df.rename(columns={'Quantité certifiée (MWh) ':"Volume certifié total (MWh)"})
+        count_df=df_data_go_checked.groupby('Année', as_index=False).agg({"Nombre de centrales": 'sum'})
+        df_chiffres=pd.merge(sum_df,count_df,on="Année")
+        sum_df_power=df_data_go_checked.groupby('Année', as_index=False).agg({'Puissance (MW) ': 'sum'})
+        df_chiffres=pd.merge(df_chiffres,sum_df_power,on="Année")
+        
+        st.markdown("**Tableau de la somme du volume valorisé, du nombre et de la puissance installée des centrales**")
+        st.dataframe(df_chiffres,use_container_width=True,hide_index=True)
+        
+    with col_ligne_2_1:
+        fig=px.bar(df_data_go_checked,x="Année",y="Puissance (MW) ",
+                color="Type d'installation ",
+                title="Puissance installée des centrales par année de production et par type",
+                color_discrete_sequence=px.colors.qualitative.Light24
+                )
+        st.plotly_chart(fig,use_container_width=True)
 
-with col_ligne_1_2:
-    sum_df=df_data_go_checked.groupby('Année', as_index=False).agg({'Quantité certifiée (MWh) ': 'sum'})
-    sum_df=sum_df.rename(columns={'Quantité certifiée (MWh) ':"Volume certifié total (MWh)"})
-    count_df=df_data_go_checked.groupby('Année', as_index=False).agg({"Nombre de centrales": 'sum'})
-    df_chiffres=pd.merge(sum_df,count_df,on="Année")
-    sum_df_power=df_data_go_checked.groupby('Année', as_index=False).agg({'Puissance (MW) ': 'sum'})
-    df_chiffres=pd.merge(df_chiffres,sum_df_power,on="Année")
-    
-    st.dataframe(df_chiffres,use_container_width=True,hide_index=True)
+    #tracé des deux derniers graphiques sur la même ligne
+    tab_pays_1, tab_pays_2 = st.tabs(["Volume par pays", "Nombre par pays"])
+    with tab_pays_1:
+        
+        fig=px.bar(df_data_go_checked,y="Pays ",x="Quantité certifiée (MWh) ",
+                color="Type d'installation ",
+                title="Volume valorisé par pays et par type de centrale",
+                orientation='h',
+                color_discrete_sequence=px.colors.qualitative.Light24
+                )
+        st.plotly_chart(fig,use_container_width=True)
+        
+    with tab_pays_2:
+        
+        # Création du graphique à barres avec px.bar
+        fig=px.bar(df_data_go_checked,y="Pays ",x='Nombre de centrales',
+                color="Type d'installation ",
+                title="Nombre de centrales par pays et par type de centrale",
+                orientation='h',
+                color_discrete_sequence=px.colors.qualitative.Light24
+                )
+        st.plotly_chart(fig,use_container_width=True)
 
-#tracé de deux autres graphiques sur la même ligne
-col_ligne_2_1,col_ligne_2_2=st.columns(2)
-with col_ligne_2_1:
-    # Création du graphique à barres avec px.bar
-    fig=px.bar(df_data_go_checked,x="Année",y='Nombre de centrales',
-            color="Type d'installation ",
-            title="Nombre de centrales par année et par type",
-            color_discrete_sequence=px.colors.qualitative.Light24
-            )
-    st.plotly_chart(fig,use_container_width=True)
-with col_ligne_2_2:
-    fig=px.bar(df_data_go_checked,x="Année",y="Puissance (MW) ",
-               color="Type d'installation ",
-               title="Puissance installée des centrales par année et par type",
-               color_discrete_sequence=px.colors.qualitative.Light24
-               )
-    st.plotly_chart(fig,use_container_width=True)
+    st.markdown("**Données sélectionnées :**")
+    st.dataframe(df_data_go_checked[['Installation ','Puissance (MW) ','Adresse ', 'Code postal ', 'Pays ',
+                                'Région Française', 'Aide(s) nationale(s) ', "Type d'installation ",
+                                'Quantité certifiée (MWh) ','Statut ','Année',
+                                "Type d'offre"]],
+                                hide_index=True)
+else :
+    st.write(":warning: Veuillez upload les données")
 
-#tracé des deux derniers graphiques sur la même ligne
-col_ligne_3_1,col_ligne_3_2=st.columns(2)
-with col_ligne_3_1:
-    
-    fig=px.bar(df_data_go_checked,y="Pays ",x="Quantité certifiée (MWh) ",
-               color="Type d'installation ",
-               title="Volume valorisé par pays et par type",
-               orientation='h',
-               color_discrete_sequence=px.colors.qualitative.Light24
-               )
-    st.plotly_chart(fig,use_container_width=True)
-    
-with col_ligne_3_2:
-    
-    # Création du graphique à barres avec px.bar
-    fig=px.bar(df_data_go_checked,y="Pays ",x='Nombre de centrales',
-               color="Type d'installation ",
-               title="Nombre de centrales par pays et par type",
-               orientation='h',
-               color_discrete_sequence=px.colors.qualitative.Light24
-               )
-    st.plotly_chart(fig,use_container_width=True)
-st.markdown("**Données sélectionnées :**")
-st.dataframe(df_data_go_checked[['Installation ','Puissance (MW) ','Adresse ', 'Code postal ', 'Pays ',
-                             'Région Française', 'Aide(s) nationale(s) ', "Type d'installation ",
-                             'Quantité certifiée (MWh) ','Statut ','Année',
-                             "Type d'offre"]],
-                             hide_index=True)
 st.write("---")
 st.caption("Développé par Alexandre Castanié")
