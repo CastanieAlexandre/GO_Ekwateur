@@ -1,0 +1,6 @@
+pandas == 2.1.1
+streamlit == 1.27.2
+seaborn == 0.12.2
+numpy == 1.26.1
+plotly == 5.18.0
+nbformat == 5.9.2
