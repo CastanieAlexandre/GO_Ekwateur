@@ -30,7 +30,7 @@ st.markdown(
     )
 
 st.markdown(
-    "<h1 style='text-align: center;'>Garanties d'Origines Ekwateur</h1>",
+    "<h1 style='text-align: center;'>Garanties d'Origine Ekwateur</h1>",
     unsafe_allow_html=True
     )
 st.sidebar.write("Données à upload :")
