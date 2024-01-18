@@ -71,8 +71,8 @@ chemin_pp_list = st.sidebar.file_uploader(
             "pp-list.csv qui contient le nom des centrales PP par année",
             type=["csv"])
 st.sidebar.write(":bulb: Appuyer sur la croix en haut à droite de la colonne pour la réduire")
-    
-st.cache_data()
+
+@st.cache_data()
 def recup_et_mise_en_forme(chemin_csv,chemin_pp):
     """Récupération et mise en forme des données issues du registre"""
     #récupération des données de l'exctract du registre
@@ -97,6 +97,15 @@ def recup_et_mise_en_forme(chemin_csv,chemin_pp):
             df_data["Type d'offre"].loc[(df_data["Installation "].str.contains(nom_pp)==True)&
                                         (df_data["Date de début "].dt.year==an)]=f"PP_{an}"
         df_data["Type d'offre"].loc[df_data["Type d'offre"].isnull()]="Classique"
+    
+    #rajout colonne type de centrale
+    df_data["Type de centrale"]=pd.Series()
+    df_data["Type de centrale"].loc[df_data["Type d'installation "].str.contains("Solaire")==True]="Solaire"
+    df_data["Type de centrale"].loc[df_data["Type d'installation "].str.contains("hydro")==True]="Hydroélectrique"
+    df_data["Type de centrale"].loc[df_data["Type d'installation "].str.contains("Vent")==True]="Éolien"
+    df_data["Type de centrale"].loc[df_data["Type d'installation "].str.contains("Marine")==True]="Marémotrice"
+    df_data["Type de centrale"].loc[df_data["Type d'installation "].str.contains("Thermique")==True]="Thermique"
+    df_data["Type de centrale"].loc[df_data["Type de centrale"].isnull()]="Inconnu/Autre"
 
     return df_data
 
@@ -187,17 +196,17 @@ if chemin_go_list is not None and chemin_pp_list is not None :
     tab_an_1, tab_an_2 = st.tabs(["Volume par année", "Nombre par année"])
     with tab_an_1:
         fig=px.bar(df_data_go_checked,x="Année",y="Quantité certifiée (MWh) ",
-                    color="Type d'installation ",
+                    color="Type de centrale",
                     title="Volume valorisé par année de production et par type de centrale",
-                    color_discrete_sequence=px.colors.qualitative.Light24
+                    color_discrete_sequence=px.colors.qualitative.Set1
                     )
         st.plotly_chart(fig,use_container_width=True)
 
     with tab_an_2:
         fig=px.bar(df_data_go_checked,x="Année",y='Nombre de centrales',
-                color="Type d'installation ",
+                color="Type de centrale",
                 title="Nombre de centrales par année de production et par type",
-                color_discrete_sequence=px.colors.qualitative.Light24
+                color_discrete_sequence=px.colors.qualitative.Set1
                 )
         st.plotly_chart(fig,use_container_width=True)
         
@@ -210,15 +219,22 @@ if chemin_go_list is not None and chemin_pp_list is not None :
         df_chiffres=pd.merge(sum_df,count_df,on="Année")
         sum_df_power=df_data_go_checked.groupby('Année', as_index=False).agg({'Puissance (MW) ': 'sum'})
         df_chiffres=pd.merge(df_chiffres,sum_df_power,on="Année")
+
+        sum_df_par_type=df_data_go_checked.groupby('Type de centrale', as_index=False).agg({'Quantité certifiée (MWh) ': 'sum'})
+        sum_df_par_type=sum_df_par_type.rename(columns={'Quantité certifiée (MWh) ':"Volume (MWh)"})
+        sum_df_par_type["Pourcentage (%)"]=(sum_df_par_type["Volume (MWh)"]*100/sum_df_par_type["Volume (MWh)"].sum()).round(1)
         
-        st.markdown("**Tableau de la somme du volume valorisé, du nombre et de la puissance installée des centrales**")
+        st.markdown("**Tableau du volume valorisé, du nombre et de la puissance installée des centrales par année**")
         st.dataframe(df_chiffres,use_container_width=True,hide_index=True)
+
+        st.markdown("**Tableau du volume valorisé par type de centrale**")
+        st.dataframe(sum_df_par_type,use_container_width=True,hide_index=True)
         
     with col_ligne_2_1:
         fig=px.bar(df_data_go_checked,x="Année",y="Puissance (MW) ",
-                color="Type d'installation ",
+                color="Type de centrale",
                 title="Puissance installée des centrales par année de production et par type",
-                color_discrete_sequence=px.colors.qualitative.Light24
+                color_discrete_sequence=px.colors.qualitative.Set1
                 )
         st.plotly_chart(fig,use_container_width=True)
 
@@ -227,10 +243,10 @@ if chemin_go_list is not None and chemin_pp_list is not None :
     with tab_pays_1:
         
         fig=px.bar(df_data_go_checked,y="Pays ",x="Quantité certifiée (MWh) ",
-                color="Type d'installation ",
+                color="Type de centrale",
                 title="Volume valorisé par pays et par type de centrale",
                 orientation='h',
-                color_discrete_sequence=px.colors.qualitative.Light24
+                color_discrete_sequence=px.colors.qualitative.Set1
                 )
         st.plotly_chart(fig,use_container_width=True)
         
@@ -238,10 +254,10 @@ if chemin_go_list is not None and chemin_pp_list is not None :
         
         # Création du graphique à barres avec px.bar
         fig=px.bar(df_data_go_checked,y="Pays ",x='Nombre de centrales',
-                color="Type d'installation ",
+                color="Type de centrale",
                 title="Nombre de centrales par pays et par type de centrale",
                 orientation='h',
-                color_discrete_sequence=px.colors.qualitative.Light24
+                color_discrete_sequence=px.colors.qualitative.Set1
                 )
         st.plotly_chart(fig,use_container_width=True)
 
@@ -249,10 +265,10 @@ if chemin_go_list is not None and chemin_pp_list is not None :
     st.dataframe(df_data_go_checked[['Installation ','Puissance (MW) ','Adresse ', 'Code postal ', 'Pays ',
                                 'Région Française', 'Aide(s) nationale(s) ', "Type d'installation ",
                                 'Quantité certifiée (MWh) ','Statut ','Année',
-                                "Type d'offre"]],
+                                "Type d'offre", "Type de centrale"]],
                                 hide_index=True)
 else :
     st.write(":warning: Veuillez upload les données")
 
 st.write("---")
-st.caption("Développé par Alexandre Castanié")
+st.caption("Développé par Alexandre Castanié - 2023")
