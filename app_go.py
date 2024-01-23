@@ -1,12 +1,11 @@
+import hmac
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import warnings
 
 # Titres et configuration de la page
-import hmac
-import streamlit as st
-
 
 def check_password():
     """Returns `True` if the user had the correct password."""
@@ -148,6 +147,10 @@ def selection_donnees(df,years:tuple,list_checked_offers:list,list_checked_statu
 
     return df_data
 
+def convert_df(df):
+    """convertisseur de dataframe en csv"""
+    return df.to_csv().encode('utf-8-sig')
+
 warnings.filterwarnings("ignore")
 if chemin_go_list is not None and chemin_pp_list is not None :
 
@@ -195,27 +198,51 @@ if chemin_go_list is not None and chemin_pp_list is not None :
     #tracé de deux graphiques sur la même ligne
     tab_an_1, tab_an_2 = st.tabs(["Volume par année", "Nombre par année"])
     with tab_an_1:
+        df_sum_annee=df_data_go_checked.groupby('Année', as_index=False).agg({'Quantité certifiée (MWh) ': 'sum'})
         fig=px.bar(df_data_go_checked,x="Année",y="Quantité certifiée (MWh) ",
                     color="Type de centrale",
                     title="Volume valorisé par année de production et par type de centrale",
                     color_discrete_sequence=px.colors.qualitative.Set1
                     )
+        
+        fig.add_trace(go.Scatter(x=df_sum_annee['Année'],
+                                 y=df_sum_annee['Quantité certifiée (MWh) '],
+                                 text=df_sum_annee['Quantité certifiée (MWh) '],
+                                 mode='text',
+                                 textposition='top center',
+                                 textfont=dict(size=15),
+                                 name="Somme totale",
+                                 showlegend=True)
+                                 )
+        
         st.plotly_chart(fig,use_container_width=True)
 
     with tab_an_2:
+        df_sum_nombre=df_data_go_checked.groupby('Année', as_index=False).agg({'Nombre de centrales' : 'sum'})
         fig=px.bar(df_data_go_checked,x="Année",y='Nombre de centrales',
                 color="Type de centrale",
                 title="Nombre de centrales par année de production et par type",
                 color_discrete_sequence=px.colors.qualitative.Set1
                 )
+        
+        fig.add_trace(go.Scatter(x=df_sum_nombre['Année'],
+                                 y=df_sum_nombre['Nombre de centrales'],
+                                 text=df_sum_nombre['Nombre de centrales'],
+                                 mode='text',
+                                 textposition='top center',
+                                 textfont=dict(size=15),
+                                 name="Somme totale",
+                                 showlegend=True)
+                                 )
+        
         st.plotly_chart(fig,use_container_width=True)
         
     #tracé de deux autres graphiques sur la même ligne
     col_ligne_2_1,col_ligne_2_2=st.columns(2)
     with col_ligne_2_2:
-        sum_df=df_data_go_checked.groupby('Année', as_index=False).agg({'Quantité certifiée (MWh) ': 'sum'})
+        sum_df=df_sum_annee.copy()
         sum_df=sum_df.rename(columns={'Quantité certifiée (MWh) ':"Volume certifié total (MWh)"})
-        count_df=df_data_go_checked.groupby('Année', as_index=False).agg({"Nombre de centrales": 'sum'})
+        count_df=df_sum_nombre.copy()
         df_chiffres=pd.merge(sum_df,count_df,on="Année")
         sum_df_power=df_data_go_checked.groupby('Année', as_index=False).agg({'Puissance (MW) ': 'sum'})
         df_chiffres=pd.merge(df_chiffres,sum_df_power,on="Année")
@@ -229,6 +256,14 @@ if chemin_go_list is not None and chemin_pp_list is not None :
 
         st.markdown("**Tableau du volume valorisé par type de centrale**")
         st.dataframe(sum_df_par_type,use_container_width=True,hide_index=True)
+
+        df_table=pd.concat([df_chiffres,sum_df_par_type],ignore_index=True)
+        df_table_csv=convert_df(df_table)
+        st.download_button(
+            label=":arrow_down: Télécharger tableaux",
+            data=df_table_csv,
+            file_name=f"Export_GO_Ekwateur_{pd.Timestamp.now().strftime('%d-%m-%Y')}.csv"
+            )
         
     with col_ligne_2_1:
         fig=px.bar(df_data_go_checked,x="Année",y="Puissance (MW) ",
@@ -236,18 +271,30 @@ if chemin_go_list is not None and chemin_pp_list is not None :
                 title="Puissance installée des centrales par année de production et par type",
                 color_discrete_sequence=px.colors.qualitative.Set1
                 )
+        
+        fig.add_trace(go.Scatter(x=sum_df_power['Année'],
+                                 y=sum_df_power["Puissance (MW) "],
+                                 text=sum_df_power["Puissance (MW) "].round(0),
+                                 mode='text',
+                                 textposition='top center',
+                                 textfont=dict(size=15),
+                                 name="Somme totale",
+                                 showlegend=True)
+                                 )
+        
         st.plotly_chart(fig,use_container_width=True)
 
     #tracé des deux derniers graphiques sur la même ligne
     tab_pays_1, tab_pays_2 = st.tabs(["Volume par pays", "Nombre par pays"])
     with tab_pays_1:
-        
+        df_sum_pays=df_data_go_checked.groupby('Pays ', as_index=False).agg({'Quantité certifiée (MWh) ': 'sum'})
         fig=px.bar(df_data_go_checked,y="Pays ",x="Quantité certifiée (MWh) ",
                 color="Type de centrale",
                 title="Volume valorisé par pays et par type de centrale",
                 orientation='h',
                 color_discrete_sequence=px.colors.qualitative.Set1
                 )
+
         st.plotly_chart(fig,use_container_width=True)
         
     with tab_pays_2:
